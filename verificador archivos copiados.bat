@@ -2,9 +2,9 @@
 setlocal EnableExtensions
 
 REM === Define tus rutas reales aquí ===
-set /p "ORIGEN=Introduce la ruta de ORIGEN: "
-set /p "DESTINO=Introduce la ruta de DESTINO: "
-set /p "RUTALOG=Introduce la ruta del archivo de log: "
+set /p "ORIGEN=Introduce la ruta de ORIGEN (no dejar contrabarras al final): "
+set /p "DESTINO=Introduce la ruta de DESTINO (no dejar contrabarras al final): "
+set /p "RUTALOG=Introduce la ruta del archivo de log (no dejar contrabarras al final): "
 
 REM Quita comillas si el usuario las puso
 set ORIGEN=%ORIGEN:"=%
@@ -33,9 +33,15 @@ for %%A in ("%DESTINO%") do set "DESTINO=%%~fA"
 for %%A in ("%RUTALOG%") do set "RUTALOG=%%~fA"
 
 REM Verifica que los destinos no sean iguales
-if /I "%ORIGEN%"=="%DESTINO%"=="%RUTALOG%" (
-  echo ERROR: ORIGEN, DESTINO y RUTALOG no pueden tener la misma ruta.
-  goto :fin
+if /I "%ORIGEN%"=="%DESTINO%" (
+    echo ERROR: ORIGEN es igual a DESTINO.
+    goto :fin
+) else if /I "%ORIGEN%"=="%RUTALOG%" (
+    echo ERROR: ORIGEN es igual a RUTALOG.
+    goto :fin
+) else if /I "%DESTINO%"=="%RUTALOG%" (
+    echo ERROR: DESTINO es igual a RUTALOG.
+    goto :fin
 )
 
 REM Verifica que existan como carpetas
