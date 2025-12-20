@@ -1,0 +1,98 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+:: =======================================================
+:: Script Batch: Elimina archivos listados en lista.txt
+:: Ruta raíz: C:\Ruta\A\Carpeta raíz (debe coincidir con el generador)
+:: Archivo de lista: C:\Ruta\A\Carpeta raíz\lista.txt
+:: =======================================================
+
+set "carpetaRaiz=C:\Ruta\A\Carpeta raíz"
+set "listaFile=%carpetaRaiz%\lista.txt"
+set "deletedCount=0"
+set "errorCount=0"
+set "filesToList=0"
+
+echo.
+echo =======================================================
+echo ESTE SCRIPT ELIMINARÁ ARCHIVOS PERMANENTEMENTE.
+echo =======================================================
+echo.
+echo Los archivos a eliminar se obtendrán de:
+echo     "%listaFile%"
+echo.
+
+:: Verifica que el archivo de lista exista
+if not exist "%listaFile%" (
+    echo [ERROR] El archivo de lista no existe: "%listaFile%"
+    echo Asegúrate de ejecutar primero el script "generar_lista.bat".
+    pause
+    exit /b 1
+)
+
+:: Contar y mostrar los archivos que se van a eliminar
+echo Archivos que serán procesados para eliminación:
+echo ----------------------------------------------------
+for /f "tokens=* delims=" %%f in ("%listaFile%") do (
+    echo - %%f
+    set /a filesToList+=1
+)
+echo ----------------------------------------------------
+echo.
+
+if %filesToList% equ 0 (
+    echo [INFO] El archivo de lista está vacío. No hay nada que eliminar.
+    pause
+    exit /b 0
+)
+
+echo Se han encontrado %filesToList% archivos en la lista.
+
+:: Pide confirmación al usuario
+choice /c SN /m "¿Estás ABSOLUTAMENTE seguro de que quieres ELIMINAR estos archivos PERMANENTEMENTE? (S/N)"
+if errorlevel 2 (
+    echo Operación cancelada por el usuario.
+    pause
+    exit /b 0
+)
+
+echo.
+echo Iniciando proceso de eliminación...
+echo.
+
+:: Bucle para eliminar cada archivo de la lista
+for /f "tokens=* delims=" %%f in ("%listaFile%") do (
+    set "currentFile=%%f"
+    if exist "!currentFile!" (
+        echo Eliminando: "!currentFile!"
+        del /q "!currentFile!"
+        if exist "!currentFile!" (
+            echo [ADVERTENCIA] No se pudo eliminar: "!currentFile!" (Puede estar en uso o permisos insuficientes)
+            set /a errorCount+=1
+        ) else (
+            set /a deletedCount+=1
+        )
+    ) else (
+        echo [ADVERTENCIA] Archivo no encontrado (ya eliminado o ruta incorrecta): "!currentFile!"
+        set /a errorCount+=1
+    )
+)
+
+echo.
+echo --- Resumen de la eliminación ---
+echo Archivos eliminados exitosamente: !deletedCount!
+echo Archivos con errores/no encontrados: !errorCount!
+echo.
+
+:: Opcional: Eliminar el archivo lista.txt después de haber procesado todos los archivos.
+:: Si no quieres que lista.txt se borre al final de este script, puedes comentar las siguientes 3 líneas.
+echo [INFO] Eliminando el archivo de lista: "%listaFile%"
+del "%listaFile%" >nul 2>&1
+if exist "%listaFile%" (
+    echo [ADVERTENCIA] No se pudo eliminar el archivo de lista: "%listaFile%"
+) else (
+    echo [OK] Archivo de lista eliminado.
+)
+
+pause
+endlocal
