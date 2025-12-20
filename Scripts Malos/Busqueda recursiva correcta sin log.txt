@@ -1,0 +1,60 @@
+@echo off
+:: Definir la ruta de la carpeta raíz
+set "carpetaRaiz=C:\Ruta\A\Carpeta raíz"
+
+:: Verificar si la carpeta raíz existe
+if not exist "%carpetaRaiz%" (
+    echo Error: La carpeta raíz no existe.
+    echo Ruta especificada: "%carpetaRaiz%"
+    echo Por favor, verifica la ruta y asegúrate de que exista.
+    pause
+    exit /b
+)
+
+:: Buscar todos los archivos en las subcarpetas y moverlos a la carpeta raíz
+for /r "%carpetaRaiz%" %%f in (*) do (
+    if not "%%~dpf"=="%carpetaRaiz%\" (
+        call :MoverArchivoSeguro "%%f" "%carpetaRaiz%"
+    )
+)
+
+:: Eliminar las subcarpetas vacías
+for /d /r "%carpetaRaiz%" %%d in (*) do (
+    rd "%%d" 2>nul
+)
+
+echo Tarea completada con éxito.
+pause
+exit /b
+
+:MoverArchivoSeguro
+setlocal enabledelayedexpansion
+set "archivo=%~1"
+set "destino=%~2"
+set "nombreArchivo=%~n1"
+set "extension=%~x1"
+set "archivoDestino=%destino%\%~nx1"
+set "contador=1"
+
+:: Verificar si el archivo ya existe en el destino
+if exist "!archivoDestino!" (
+    :: Buscar un nombre disponible agregando un número
+    :BuscarNombre
+    set "nuevoNombre=%nombreArchivo%_!contador!%extension%"
+    set "archivoDestino=%destino%\!nuevoNombre!"
+    if exist "!archivoDestino!" (
+        set /a contador+=1
+        goto :BuscarNombre
+    )
+    echo Archivo renombrado: !nuevoNombre!
+)
+
+:: Mover el archivo con el nombre disponible
+move "!archivo!" "!archivoDestino!" >nul
+if !errorlevel! equ 0 (
+    echo Movido: %~nx1 ^> !nuevoNombre!
+) else (
+    echo Error moviendo: %~nx1
+)
+endlocal
+exit /b

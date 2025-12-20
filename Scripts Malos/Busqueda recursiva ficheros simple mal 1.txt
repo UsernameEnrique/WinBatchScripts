@@ -1,0 +1,18 @@
+@echo off
+:: Definir la ruta de la carpeta raíz
+set "carpetaRaiz=C:\Ruta\A\Carpeta raíz"
+
+:: Buscar todos los archivos en las subcarpetas y moverlos a la carpeta raíz
+for /r "%carpetaRaiz%" %%f in (*) do (
+    if not "%%~dpf"=="%carpetaRaiz%\" (
+        move "%%f" "%carpetaRaiz%\"
+    )
+)
+
+:: Eliminar las subcarpetas vacías
+for /d /r "%carpetaRaiz%" %%d in (*) do (
+    rd "%%d" 2>nul
+)
+
+echo Tarea completada con éxito.
+pause

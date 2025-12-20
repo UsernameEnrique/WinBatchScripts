@@ -1,0 +1,148 @@
+@echo off
+setlocal enabledelayedexpansion
+
+:: ============================================================================
+:: Fase 0: Configuración y Preparación del Log
+:: ============================================================================
+
+:: Establece la ruta de la carpeta raíz. ¡Asegúrate de que no termine con una barra invertida!
+set "carpetaRaiz=C:\Ruta\A\Carpeta raíz"
+set "logFile=%carpetaRaiz%\consolidacion_log.txt"
+set "errorCount=0"
+
+echo.
+echo Script para consolidar archivos y limpiar subcarpetas (Version Robusta con Logs).
+echo Carpeta de trabajo: "%carpetaRaiz%"
+echo El registro detallado se guardara en: "%logFile%"
+echo.
+
+:: --- Gestión de Logs Antiguos ---
+if exist "%logFile%" (
+    set "logBaseName=%carpetaRaiz%\consolidacion_log"
+    set "logExtension=.txt"
+    for /l %%i in (1,1,999) do (
+        if not exist "!logBaseName!(%%i)!logExtension!" (
+            echo Renombrando log antiguo a "!logBaseName!(%%i)!logExtension!"
+            ren "%logFile%" "consolidacion_log(%%i).txt"
+            goto :logRenamed
+        )
+    )
+    echo ADVERTENCIA: No se pudo renombrar el log antiguo. Se sobreescribira.
+    :logRenamed
+)
+
+:: --- Inicialización del Log ---
+(
+    echo ============================================================================
+    echo INICIO DEL PROCESO: %date% %time%
+    echo ============================================================================
+    echo.
+    echo Carpeta Raiz de Trabajo: "%carpetaRaiz%"
+    echo.
+) > "%logFile%"
+
+:: ============================================================================
+:: Fase 1: Mover y Renombrar TODOS los archivos de las subcarpetas
+:: ============================================================================
+echo Fase 1: Moviendo y renombrando archivos de forma segura...
+echo Fase 1: Moviendo y renombrando archivos... >> "%logFile%"
+
+:: Busca recursivamente TODOS los archivos en la carpeta raíz y sus subdirectorios.
+for /r "%carpetaRaiz%" %%F in (*) do (
+    
+    :: La condición clave: solo procesamos archivos que NO están ya en la carpeta raíz.
+    if /i not "%%~dpF"=="%carpetaRaiz%\" (
+        :: Llama a la subrutina de trabajo, pasando la ruta del archivo.
+        call :moverYRenombrar "%%F"
+    )
+)
+
+echo.
+echo Fase 1 completada. Todos los archivos han sido consolidados.
+(
+    echo.
+    echo Fase 1 completada.
+    echo.
+) >> "%logFile%"
+
+:: ============================================================================
+:: Fase 2: Limpieza de TODAS las subcarpetas vacías
+:: ============================================================================
+echo Fase 2: Eliminando las subcarpetas que han quedado vacias...
+(
+    echo ----------------------------------------------------------------------------
+    echo Fase 2: Eliminando subcarpetas vacias...
+) >> "%logFile%"
+
+for /f "delims=" %%D in ('dir "%carpetaRaiz%" /ad /b /s ^| sort /r') do (
+    rd "%%D" 2>nul
+    if !errorlevel! neq 0 (
+        set /a errorCount+=1
+        echo ERROR: No se pudo eliminar la carpeta "%%D". Es posible que no este vacia. >> "%logFile%"
+    ) else (
+        echo Carpeta eliminada: "%%D" >> "%logFile%"
+    )
+)
+
+echo.
+echo ============================================================================
+echo Proceso completado.
+echo Se encontraron !errorCount! errores. Revisa el log para mas detalles.
+echo ============================================================================
+
+(
+    echo.
+    echo ============================================================================
+    echo FIN DEL PROCESO: %date% %time%
+    echo Total de errores registrados: !errorCount!
+    echo ============================================================================
+) >> "%logFile%"
+
+pause
+goto :eof
+
+:: ============================================================================
+:: SUBRUTINA: moverYRenombrar
+:: Recibe la ruta completa de un archivo como primer argumento (%1).
+:: Lo mueve a la carpeta raíz, renombrándolo si es necesario.
+:: Registra las acciones y los errores en el log.
+:: ============================================================================
+:moverYRenombrar
+set "rutaCompleta=%~1"
+set "nombreBase=%~n1"
+set "extension=%~x1"
+set "destinoFinal=%carpetaRaiz%\%nombreBase%%extension%"
+
+:: Si el destino NO existe, lo movemos directamente.
+if not exist "%destinoFinal%" (
+    echo Moviendo "%rutaCompleta%"
+    move "%rutaCompleta%" "%destinoFinal%" > nul
+    if !errorlevel! neq 0 (
+        set /a errorCount+=1
+        echo [ERROR] Al mover "%rutaCompleta%" a "%destinoFinal%" >> "%logFile%"
+    ) else (
+        echo [OK] "%rutaCompleta%" -> "%destinoFinal%" >> "%logFile%"
+    )
+    goto :eof
+)
+
+:: Si el destino SÍ existe, buscamos un nuevo nombre.
+for /l %%i in (1,1,9999) do (
+    set "nuevoDestino=%carpetaRaiz%\%nombreBase%_(%%i)%extension%"
+    if not exist "!nuevoDestino!" (
+        echo Moviendo y renombrando "%rutaCompleta%"
+        move "%rutaCompleta%" "!nuevoDestino!" > nul
+        if !errorlevel! neq 0 (
+            set /a errorCount+=1
+            echo [ERROR] Al mover "%rutaCompleta%" a "!nuevoDestino!" >> "%logFile%"
+        ) else (
+            echo [RENOMBRADO] "%rutaCompleta%" -> "!nuevoDestino!" >> "%logFile%"
+        )
+        goto :eof
+    )
+)
+
+:: Si no se encontró un nombre disponible (muy improbable).
+set /a errorCount+=1
+echo [ERROR CRITICO] No se pudo encontrar un nombre de archivo disponible para "%rutaCompleta%" en la carpeta raiz. >> "%logFile%"
+goto :eof

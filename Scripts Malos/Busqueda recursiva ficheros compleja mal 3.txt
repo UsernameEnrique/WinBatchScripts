@@ -1,0 +1,95 @@
+@echo off
+setlocal enabledelayedexpansion
+
+:: ============================================================================
+::      SCRIPT PARA CONSOLIDAR ARCHIVOS (VERSIÓN SIMPLE Y FIABLE)
+:: ============================================================================
+
+:: --- CONFIGURACIÓN ---
+:: Modifica esta línea con tu carpeta de trabajo.
+:: ¡Asegúrate de que NO termine con una barra invertida \ !
+set "carpetaRaiz=C:\Ruta\A\Carpeta raíz"
+
+:: --- COMPROBACIÓN INICIAL ---
+if not exist "%carpetaRaiz%" (
+    echo.
+    echo [ERROR] La carpeta raiz no existe: "%carpetaRaiz%"
+    echo Por favor, corrige la ruta en el script.
+    echo.
+    pause
+    goto :eof
+)
+
+echo.
+echo Carpeta de trabajo: "%carpetaRaiz%"
+echo Presiona una tecla para iniciar la consolidacion de archivos...
+pause > nul
+echo.
+
+:: ============================================================================
+:: Fase 1: Mover y renombrar archivos para evitar sobrescrituras
+:: ============================================================================
+
+echo Iniciando la busqueda y movimiento de archivos...
+echo.
+
+:: Itera de forma recursiva (/r) sobre todos los archivos (*) en la carpeta raíz.
+for /r "%carpetaRaiz%" %%F in (*) do (
+    
+    :: La condición clave: solo procesar archivos que NO están ya en la carpeta raíz.
+    :: "%%~dpF" es la ruta del archivo (Drive y Path).
+    if /i not "%%~dpF"=="%carpetaRaiz%\" (
+        
+        :: Define el nombre del archivo y el destino inicial.
+        set "nombreArchivo=%%~nxF"
+        set "destinoFinal=%carpetaRaiz%\!nombreArchivo!"
+        
+        :: Si el archivo NO existe en la raíz, moverlo directamente.
+        if not exist "!destinoFinal!" (
+            move "%%F" "%carpetaRaiz%\" > nul
+            echo Movido: "!nombreArchivo!"
+        
+        ) else (
+            :: Si el archivo SÍ existe, buscar un nuevo nombre.
+            set "nombreBase=%%~nF"
+            set "extension=%%~xF"
+            
+            :: Bucle para encontrar un nombre disponible con un contador _(i)
+            for /l %%i in (1,1,9999) do (
+                set "nuevoDestino=%carpetaRaiz%\!nombreBase!_(%%i)!extension!"
+                if not exist "!nuevoDestino!" (
+                    move "%%F" "!nuevoDestino!" > nul
+                    echo Renombrado por duplicado: "!nombreArchivo!" -> "!nombreBase!_(%%i)!extension!"
+                    
+                    :: Salta fuera de este bucle for /l una vez que el archivo se ha movido.
+                    goto :archivoMovido
+                )
+            )
+            :archivoMovido
+        )
+    )
+)
+
+echo.
+echo Fase 1 completada. Todos los archivos han sido consolidados en la raiz.
+echo.
+
+:: ============================================================================
+:: Fase 2: Eliminar las subcarpetas que han quedado vacías
+:: ============================================================================
+
+echo Iniciando la eliminacion de carpetas vacias...
+
+:: El comando 'dir' lista todos los subdirectorios (/ad) de forma básica (/b) y recursiva (/s).
+:: 'sort /r' los ordena en orden inverso (de las más profundas a las más superficiales).
+:: Esto asegura que una carpeta se borre solo después de que sus subcarpetas ya lo hayan hecho.
+for /f "delims=" %%D in ('dir "%carpetaRaiz%" /ad /b /s ^| sort /r') do (
+    rd "%%D" 2>nul
+)
+
+echo.
+echo ============================================================================
+echo Proceso completado con exito.
+echo ============================================================================
+echo.
+pause
